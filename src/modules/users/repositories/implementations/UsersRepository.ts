@@ -1,7 +1,7 @@
 import { getRepository, Repository } from 'typeorm';
-import { Game } from '../../../games/entities/Game';
 
 import { IFindUserWithGamesDTO, IFindUserByFullNameDTO } from '../../dtos';
+import { Game } from '../../../games/entities/Game';
 import { User } from '../../entities/User';
 import { IUsersRepository } from '../IUsersRepository';
 
@@ -15,30 +15,41 @@ export class UsersRepository implements IUsersRepository {
   async findUserWithGamesById({
     user_id,
   }: IFindUserWithGamesDTO): Promise<User> {
-    const user = await this.repository.findOne({ id: user_id })
-    
-    if(!user){
-      throw new Error("User not Exists!")
-    }
+    return this.repository.createQueryBuilder('user')
+    .leftJoinAndSelect("user.games", "game")
+    .where("user.id = :id", { id: user_id })
+    .getOneOrFail();
 
-    const games = await this.repository
-      .createQueryBuilder()
-      .select("games")
-      .from(Game, "games")
-      .innerJoin("users_games_games", "users_games_games","users_games_games.gamesId = games.id")
-      .where("users_games_games.usersId = :usersId", {usersId: user.id})
-      .orderBy("users_games_games")
-      .getMany()
-    
-    user.games = games
 
-    return user;
+    // FORMA ANTIGA QUE NÃO PASSOU NO TESTE ABAIXO:
+
+    // const user = await this.repository.findOne({id: user_id})
+    
+    // if(!user){
+    //   throw new Error("User not Exists!")
+    // }
+
+    // const games = await this.repository
+    //   .createQueryBuilder()
+    //   .select("games")
+    //   .from(Game, "games")
+    //   .innerJoin("users_games_games", "users_games_games","users_games_games.gamesId = games.id")
+    //   .where("users_games_games.usersId = :usersId", {usersId: user.id})
+    //   .orderBy("users_games_games")
+    //   .getMany()
+    
+    // user.games = games
+    // return user;
 
 
   }
 
   async findAllUsersOrderedByFirstName(): Promise<User[]> {
-    return this.repository.query(`SELECT * FROM users ORDER BY first_name`);
+    return this.repository.query(`
+    SELECT 
+    * 
+    FROM users 
+    ORDER BY first_name`);
   }
 
   async findUserByFullName({
